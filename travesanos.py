@@ -45,14 +45,21 @@ with st.sidebar.expander("🧪 Material y Calzos", expanded=True):
                                   ["Aluminio 6063 - T6", "Aluminio 6063 - T5", "Acero A42-27ES"])
     
     st.markdown("---")
+    # SECCIÓN DE CALZOS CON CÁLCULO EN TIEMPO REAL
     mat_block = st.selectbox("Material del Calzo", ["Neopreno/EPDM/Silicona", "PVC"])
+    
+    # Cálculo rápido para mostrar bajo el selector
+    area_m2_tmp = (L * U) / 1000000
+    factor_tmp = 27 if mat_block == "Neopreno/EPDM/Silicona" else 14
+    largo_tmp = max(factor_tmp * area_m2_tmp, 100.0 if L > 1219.2 else 50.0)
+    
+    st.markdown(f'<p class="calc-inline">📏 Largo sugerido: {largo_tmp:.1f} mm</p>', unsafe_allow_html=True)
+    
     pos_block = st.radio("Posición de Apoyo", ["L/4 (Preferida)", "L/8 (Alternativa)"])
     
-    if st.button("Ver Guía de Calzos (setting.jpg)"):
+    if st.button("Ver Guía de Calzos"):
         if os.path.exists("setting.jpg"):
             st.image("setting.jpg", caption="Ubicación de tacos de asentamiento")
-        else:
-            st.warning("Archivo 'setting.jpg' no encontrado.")
 
 # =================================================================
 # 3. MOTOR DE CÁLCULO (ORDENADO)
