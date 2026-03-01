@@ -9,24 +9,17 @@ import os
 # =================================================================
 st.set_page_config(page_title="AccuraWall | Prediseño de Travesaños", layout="wide")
 
-# Estilo CSS personalizado para mejorar la visualización
 st.markdown("""
     <style>
     .main > div { padding-left: 2.5rem; padding-right: 2.5rem; }
     .stMetric { background-color: #f8f9fa; padding: 15px; border-radius: 10px; border: 1px solid #dee2e6; }
     .result-box { 
-        background-color: #f0f7ff; 
-        padding: 25px; 
-        border-left: 10px solid #003366; 
-        border-radius: 8px; 
-        margin: 20px 0;
+        background-color: #f0f7ff; padding: 25px; 
+        border-left: 10px solid #003366; border-radius: 8px; margin: 20px 0;
     }
     .guide-box {
-        background-color: #fffaf0;
-        padding: 15px;
-        border: 1px solid #ff9900;
-        border-radius: 8px;
-        margin-bottom: 20px;
+        background-color: #fffaf0; padding: 15px;
+        border: 1px solid #ff9900; border-radius: 8px; margin-bottom: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -36,104 +29,120 @@ st.markdown("#### **Control de Deflexión Combinada y Especificación de Apoyos 
 st.divider()
 
 # =================================================================
-# 2. SIDEBAR: PARÁMETROS TÉCNICOS Y CRITERIOS
+# 2. SIDEBAR: PARÁMETROS TÉCNICOS Y BOTÓN DE IMAGEN
 # =================================================================
 st.sidebar.header("⚙️ Parámetros de Diseño")
 
-# --- Geometría y Cargas ---
 with st.sidebar.expander("📐 Geometría y Cargas", expanded=True):
     L = st.number_input("Longitud del Travesaño (L) [mm]", value=1500.0, step=10.0)
     U = st.number_input("Altura de Vidrio Superior (U) [mm]", value=2500.0, step=10.0)
-    q_viento = st.number_input("Carga de Viento de Diseño (q) [kgf/m²]", value=100.0, step=5.0)
-    e_vidrio = st.number_input("Espesor Total del Vidrio (e) [mm]", value=12.0)
+    q_viento = st.number_input("Carga de Viento (q) [kgf/m²]", value=100.0, step=5.0)
+    e_vidrio = st.number_input("Espesor Total Vidrio (e) [mm]", value=12.0)
 
-# --- Criterio de Deformación HORIZONTAL (Carga de Viento) ---
-# Lógica automática según longitud para deflexión horizontal
-if L < 4115:
-    crit_h_sug = "L/175"
-    val_h_sug = L / 175
-else:
-    crit_h_sug = "L/240 + 6.35 mm"
-    val_h_sug = (L / 240) + 6.35
-
-with st.sidebar.expander("📏 Criterio Deformación HORIZONTAL", expanded=True):
-    st.markdown(f"**Sugerido (Viento):** `{crit_h_sug}`")
-    df_h_adm = st.number_input("Deflexión Horiz. Admisible [mm]", value=float(val_h_sug))
-
-# --- Criterio de Deformación VERTICAL (Peso del Vidrio) ---
-# El criterio estándar es L/360, limitado a un máximo de 3.18 mm para no dañar sellos
-val_v_sug = min(L / 360, 3.18)
-
-with st.sidebar.expander("📏 Criterio Deformación VERTICAL", expanded=True):
-    st.markdown(f"**Estándar (Peso):** `min(L/360, 3.18mm)`")
-    df_v_adm = st.number_input("Deflexión Vert. Admisible [mm]", value=float(val_v_sug))
-
-# --- Material y Configuración de Apoyos ---
 with st.sidebar.expander("🧪 Material y Setting Blocks", expanded=True):
     material = st.selectbox("Material del Perfil", 
                             ["Aluminio 6063 - T6", "Aluminio 6063 - T5", "Acero A42-27ES"])
     
     st.markdown("---")
-    st.markdown("**Configuración de Setting Blocks (Calzos)**")
     mat_block = st.selectbox("Material del Calzo", 
                              ["Neopreno/EPDM/Silicona", "Plomo (Lead)", "Lock-strip Gasket"])
     pos_block = st.radio("Posición de Apoyo", ["L/4 (Preferida)", "L/8 (Alternativa)"])
+    
+    # BOTÓN PARA CARGAR IMAGEN DE SETTING BLOCKS
+    if st.button("Ver Guía de Posicionamiento (setting.jpg)"):
+        if os.path.exists("setting.jpg"):
+            st.image("setting.jpg", caption="Criterios de Posicionamiento de Calzos")
+        else:
+            st.error("Archivo 'setting.jpg' no encontrado.")
 
 # =================================================================
-# 3. MOTOR DE CÁLCULO ACTUALIZADO
+# 3. MOTOR DE CÁLCULO (INCLUYE FÓRMULA DE CALZOS)
 # =================================================================
-def calcular_requerimientos_completos():
+def calcular_todo():
     # Propiedades del Material
-    if material == "Aluminio 6063 - T6":
-        E, Fcy = 7101002754, 17576739.5
-    elif material == "Aluminio 6063 - T5":
-        E, Fcy = 7101002754, 11249113.3
-    else: # Acero
-        E, Fcy = 21000000000, 27532337.75
+    E = 21000000000 if "Acero" in material else 7101002754
+    Fcy = 27532337.75 if "Acero" in material else (17576739.5 if "T6" in material else 11249113.3)
 
     L_m, U_m, e_m = L / 1000, U / 1000, e_vidrio / 1000
-    Df_h_m, Df_v_m = df_h_adm / 1000, df_v_adm / 1000
+    
+    # 1. Deflexiones Admisibles
+    df_h_adm = (L / 175) if L < 4115 else ((L / 240) + 6.35)
+    df_v_adm = min(L / 360, 3.18)
 
-    # --- EJE X-X (Viento / Inercia Ix) ---
-    M_viento = (1/8) * (q_viento * U_m) * (L_m)**2
+    # 2. Inercias y Módulos
+    # Viento (Ix)
     ratio_h = U_m / (2 * L_m)
     factor_h = (1 - (4/3) * (ratio_h**2)) if ratio_h < 1 else 1.0
-    Ix_req = ((5 / 384) * q_viento * U_m * L_m**4 / (E * Df_h_m)) * factor_h
+    Ix_req = ((5 / 384) * q_viento * U_m * L_m**4 / (E * (df_h_adm/1000))) * factor_h
+    
+    # Peso (Iy)
+    peso_v = 2500 * e_m * U_m 
+    Iy_req = (5 / 384) * peso_v * L_m**4 / (E * (df_v_adm/1000))
 
-    # --- EJE Y-Y (Peso Vidrio / Inercia Iy) ---
-    peso_vidrio_kgml = 2500 * e_m * U_m 
-    M_peso = (1/8) * peso_vidrio_kgml * (L_m)**2
-    Iy_req = (5 / 384) * peso_vidrio_kgml * L_m**4 / (E * Df_v_m)
-
-    # --- MÓDULOS RESISTENTES (S = M / Fb) ---
     Fb = 0.6 * Fcy
-    Sx_req = (M_viento / Fb) * 100**3 # cm3
-    Sy_req = (M_peso / Fb) * 100**3   # cm3
+    Sx_req = ((1/8 * q_viento * U_m * L_m**2) / Fb) * 100**3
+    Sy_req = ((1/8 * peso_v * L_m**2) / Fb) * 100**3
 
-    return Ix_req * 100**4, Iy_req * 100**4, Sx_req, Sy_req
+    # 3. CÁLCULO DE CALZOS (SEGÚN IMAGEN)
+    area_sqft = (L * U) / 92903.04
+    
+    if mat_block == "Neopreno/EPDM/Silicona":
+        len_inch = 0.1 * area_sqft
+        min_inch = 4.0 if L > 1219.2 else 0.0 # L > 48"
+    elif mat_block == "Plomo (Lead)":
+        len_inch = 0.05 * area_sqft
+        min_inch = 4.0 if L > 1219.2 else 0.0
+    else: # Lock-strip Gasket
+        len_inch = 0.5 * area_sqft
+        min_inch = 6.0
+    
+    final_sb_mm = max(len_inch, min_inch) * 25.4
+    dist_sb_mm = L * (0.25 if "L/4" in pos_block else 0.125)
 
-ix, iy, sx, sy = calcular_requerimientos_completos()
+    return (Ix_req * 100**4, Iy_req * 100**4, Sx_req, Sy_req, 
+            final_sb_mm, dist_sb_mm, area_sqft, df_h_adm, df_v_adm)
+
+ix, iy, sx, sy, sb_len, sb_pos, area_ft2, d_h, d_v = calcular_todo()
 
 # =================================================================
-# 4. DESPLIEGUE EN DOS FILAS
+# 4. DESPLIEGUE DE RESULTADOS
 # =================================================================
 st.subheader("📊 Resumen de Requerimientos Mínimos de Sección")
 
-# FILA 1: INERCIAS
-fila1_c1, fila1_c2 = st.columns(2)
-with fila1_c1:
-    st.metric("Inercia Ix (Viento)", f"{ix:.2f} cm⁴")
-with fila1_c2:
-    st.metric("Inercia Iy (Peso Vidrio)", f"{iy:.2f} cm⁴")
+# Fila 1: Inercias
+c1, c2 = st.columns(2)
+with c1: st.metric("Inercia Ix (Viento)", f"{ix:.2f} cm⁴", help=f"Límite: {d_h:.2f} mm")
+with c2: st.metric("Inercia Iy (Peso Vidrio)", f"{iy:.2f} cm⁴", help=f"Límite: {d_v:.2f} mm")
 
-# FILA 2: MÓDULOS SECCIONALES
-fila2_c1, fila2_c2 = st.columns(2)
-with fila2_c1:
-    st.metric("Módulo Sx (Resistencia Viento)", f"{sx:.2f} cm³")
-with fila2_c2:
-    st.metric("Módulo Sy (Resistencia Peso)", f"{sy:.2f} cm³")
+# Fila 2: Módulos
+c3, c4 = st.columns(2)
+with c3: st.metric("Módulo Sx (Resistencia Viento)", f"{sx:.2f} cm³")
+with c4: st.metric("Módulo Sy (Resistencia Peso)", f"{sy:.2f} cm³")
 
 st.divider()
+
+# Sección de Calzos
+st.subheader("🛠️ Especificación de Setting Blocks (Calzos)")
+col_sb1, col_sb2 = st.columns(2)
+
+with col_sb1:
+    st.markdown(f"""
+    <div class="guide-box">
+        <h4 style="margin-top:0; color: #ff9900;">Resultados del Cálculo:</h4>
+        <ul>
+            <li><strong>Área del Vidrio:</strong> {area_ft2:.2f} ft²</li>
+            <li><strong>Longitud mínima del calzo:</strong> {sb_len:.2f} mm</li>
+            <li><strong>Ubicación ({pos_block.split()[0]}):</strong> {sb_pos:.2f} mm desde extremos</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col_sb2:
+    if os.path.exists("trav.jpg"):
+        st.image("trav.jpg", caption="Diagrama de Travesaño", use_column_width=True)
+    else:
+        st.info("Imagen 'trav.jpg' no disponible.")
+
 
 # =================================================================
 # 5. GRÁFICOS DE SENSIBILIDAD (Ix e Iy vs LONGITUD)
