@@ -48,7 +48,7 @@ with st.sidebar.expander("🧪 Material y Calzos", expanded=True):
     st.markdown("---")
     mat_block = st.selectbox("Material del Calzo", ["Neopreno/EPDM/Silicona", "PVC"])
     
-    # Cálculo métrico inmediato de calzos
+    # Cálculo métrico inmediato de calzos (27 mm/m2 o 14 mm/m2)
     area_m2 = (L * U) / 1_000_000
     factor_sb = 27 if mat_block == "Neopreno/EPDM/Silicona" else 14
     sb_len_sug = max(factor_sb * area_m2, 100.0 if L > 1219.2 else 50.0)
@@ -65,10 +65,13 @@ with st.sidebar.expander("🧪 Material y Calzos", expanded=True):
 # 3. MOTOR DE CÁLCULO
 # =================================================================
 def ejecutar_calculos():
-    E = 210_000_000_000 if "Acero" in material_perfil else 71_010_027_540 # Pa -> kgf/m2 aprox
-    # Simplificación para el ejemplo, ajustar E y Fcy a unidades coherentes
-    E = 21000000000 if "Acero" in material_perfil else 7101002754
-    Fcy = 27532337.75 if "Acero" in material_perfil else (17576739.5 if "T6" in material_perfil else 11249113.3)
+    # Propiedades del Material
+    if "Acero" in material_perfil:
+        E, Fcy = 21000000000, 27532337.75
+    elif "T6" in material_perfil:
+        E, Fcy = 7101002754, 17576739.5
+    else: # T5
+        E, Fcy = 7101002754, 11249113.3
 
     L_m, U_m, e_m = L/1000, U/1000, e_vidrio/1000
     df_h_adm = (L/175) if L < 4115 else ((L/240) + 6.35)
@@ -94,16 +97,16 @@ def ejecutar_calculos():
 ix, iy, sx, sy, sb_l, sb_p, a_m2 = ejecutar_calculos()
 
 # =================================================================
-# 4. RESULTADOS Y PDF
+# 4. RESULTADOS VISUALES
 # =================================================================
 st.subheader("📊 Requerimientos Mínimos de Sección")
 c1, c2 = st.columns(2)
 with c1: st.metric("Inercia Ix (Viento)", f"{ix:.2f} cm⁴")
-with c2: st.metric("Inercia Iy (Peso)", f"{iy:.2f} cm⁴")
+with c2: st.metric("Inercia Iy (Peso Vidrio)", f"{iy:.2f} cm⁴")
 
 c3, c4 = st.columns(2)
-with c3: st.metric("Módulo Sx", f"{sx:.2f} cm³")
-with c4: st.metric("Módulo Sy", f"{sy:.2f} cm³")
+with c3: st.metric("Módulo Sx (Resistencia)", f"{sx:.2f} cm³")
+with c4: st.metric("Módulo Sy (Resistencia)", f"{sy:.2f} cm³")
 
 st.divider()
 
@@ -111,11 +114,11 @@ col_sb1, col_sb2 = st.columns(2)
 with col_sb1:
     st.markdown(f"""
     <div class="guide-box">
-        <h4 style="margin-top:0; color: #ff9900;">Especificación de Calzos:</h4>
+        <h4 style="margin-top:0; color: #ff9900;">Detalle de Apoyos (Vidrio):</h4>
         <ul>
-            <li><strong>Largo:</strong> {sb_l:.2f} mm</li>
+            <li><strong>Largo del calzo:</strong> {sb_l:.2f} mm</li>
             <li><strong>Dureza:</strong> 85 ± 5 Sh A°</li>
-            <li><strong>Ubicación:</strong> {sb_p:.1f} mm</li>
+            <li><strong>Ubicación:</strong> {sb_p:.1f} mm desde extremos</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
@@ -125,23 +128,49 @@ with col_sb2:
         sub1, sub2 = st.columns([4, 6])
         with sub1: st.image("trav.jpg", use_column_width=True)
 
-# --- GENERADOR DE PDF ---
+# =================================================================
+# 5. GENERADOR DE PDF PROFESIONAL
+# =================================================================
 def generar_pdf():
     pdf = FPDF()
     pdf.add_page()
-    if os.path.exists("Logo.png"): pdf.image("Logo.png", x=10, y=8, w=33)
-    pdf.set_font("Arial", 'B', 16); pdf.cell(0, 10, "Memoria de Calculo: Travesaños", ln=True, align='C')
-    pdf.ln(20)
-    pdf.set_font("Arial", 'B', 12); pdf.cell(0, 10, "1. Datos del Proyecto", ln=True)
-    pdf.set_font("Arial", '', 10); pdf.cell(0, 8, f"L: {L} mm | U: {U} mm | Viento: {q_viento} kgf/m2", ln=True)
-    pdf.ln(5)
-    pdf.set_font("Arial", 'B', 12); pdf.cell(0, 10, "2. Resultados", ln=True)
+    
+    # Encabezado con Logo
+    if os.path.exists("Logo.png"):
+        pdf.image("Logo.png", x=10, y=8, w=33)
+    
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(0, 10, "Memoria de Calculo: Travesaños", ln=True, align='C')
+    pdf.set_font("Arial", 'I', 10)
+    pdf.cell(0, 7, "Proyectos Estructurales | Structural Lab", ln=True, align='C')
+    pdf.ln(15)
+
+    # Datos del Proyecto
+    pdf.set_fill_color(240, 240, 240)
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(0, 10, " 1. INFORMACION DEL PROYECTO", ln=True, fill=True)
     pdf.set_font("Arial", '', 10)
-    pdf.cell(0, 8, f"Ix: {ix:.2f} cm4 | Iy: {iy:.2f} cm4", ln=True)
-    pdf.cell(0, 8, f"Sx: {sx:.2f} cm3 | Sy: {sy:.2f} cm3", ln=True)
+    pdf.cell(0, 8, f" Longitud L: {L} mm | Altura U: {U} mm", ln=True)
+    pdf.cell(0, 8, f" Carga Viento q: {q_viento} kgf/m2 | Espesor Vidrio e: {e_vidrio} mm", ln=True)
     pdf.ln(5)
-    pdf.set_font("Arial", 'B', 12); pdf.cell(0, 10, "3. Calzos", ln=True)
-    pdf.cell(0, 8, f"Material: {mat_block} | Largo: {sb_l:.2f} mm | Pos: {sb_p:.1f} mm", ln=True)
+
+    # Resultados
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(0, 10, " 2. RESULTADOS DE ANALISIS", ln=True, fill=True)
+    pdf.set_font("Arial", '', 10)
+    pdf.cell(95, 8, f" Inercia Ix: {ix:.2f} cm4", border=0)
+    pdf.cell(95, 8, f" Modulo Sx: {sx:.2f} cm3", ln=True)
+    pdf.cell(95, 8, f" Inercia Iy: {iy:.2f} cm4", border=0)
+    pdf.cell(95, 8, f" Modulo Sy: {sy:.2f} cm3", ln=True)
+    pdf.ln(5)
+
+    # Calzos
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(0, 10, " 3. ESPECIFICACION DE CALZOS", ln=True, fill=True)
+    pdf.set_font("Arial", '', 10)
+    pdf.cell(0, 8, f" Material: {mat_block} | Dureza: 85 +/- 5 Sh A", ln=True)
+    pdf.cell(0, 8, f" Largo Sugerido: {sb_l:.2f} mm | Posicion: {sb_p:.1f} mm", ln=True)
+    
     return pdf.output(dest='S').encode('latin-1')
 
 st.sidebar.markdown("---")
@@ -149,32 +178,36 @@ if st.sidebar.button("📄 Preparar Reporte PDF"):
     try:
         pdf_bytes = generar_pdf()
         b64 = base64.b64encode(pdf_bytes).decode()
-        href = f'<a href="data:application/pdf;base64,{b64}" download="Memoria_L{int(L)}.pdf" style="background-color: #ff9900; color: white; padding: 12px; text-decoration: none; border-radius: 5px; display: block; text-align: center;">📥 DESCARGAR AHORA</a>'
-        st.sidebar.markdown(href, unsafe_allow_html=True)
-        st.sidebar.info("Presiona el boton naranja para descargar.")
-    except Exception as e: st.sidebar.error(f"Error: {e}")
+        
+        btn_html = f'''
+            <div style="text-align: center; margin-top: 10px;">
+                <a href="data:application/pdf;base64,{b64}" download="Memoria_Travesano_L{int(L)}.pdf" 
+                   style="background-color: #ff9900; color: white; padding: 12px 20px; text-decoration: none; 
+                   border-radius: 5px; font-weight: bold; display: block;">
+                   📥 DESCARGAR AHORA
+                </a>
+            </div>
+        '''
+        st.sidebar.markdown(btn_html, unsafe_allow_html=True)
+        st.sidebar.info("Archivo listo. Presione el botón naranja.")
+    except Exception as e:
+        st.sidebar.error(f"Error técnico: {e}")
 
 # =================================================================
-# 5. GRÁFICOS DE SENSIBILIDAD
+# 6. GRÁFICOS DE SENSIBILIDAD
 # =================================================================
 st.subheader("📈 Análisis de Sensibilidad")
 L_axis = np.linspace(2000, 6000, 50)
 Ix_plt, Iy_plt = [], []
-
-# E para gráfico
 E_plt = 21000000000 if "Acero" in material_perfil else 7101002754
 
 for lx in L_axis:
     lx_m = lx / 1000
     df_h = (lx / 175) if lx < 4115 else ((lx / 240) + 6.35)
     df_v = min(lx / 360, 3.18)
-    
-    # Sensibilidad Ix
     r_h = (U/1000) / (2 * lx_m)
     f_h = (1 - (4/3)*r_h**2) if r_h < 1 else 1.0
     Ix_plt.append(((5/384)*q_viento*(U/1000)*lx_m**4 / (E_plt*(df_h/1000))) * f_h * 100**4)
-    
-    # Sensibilidad Iy
     p_v = 2500 * (e_vidrio/1000) * (U/1000)
     Iy_plt.append(((5/384)*p_v*lx_m**4 / (E_plt*(df_v/1000))) * 100**4)
 
@@ -190,75 +223,5 @@ ax2.set_title("Iy vs Longitud (Peso)")
 ax2.grid(True, alpha=0.3)
 
 st.pyplot(fig)
-
 st.markdown("---")
 st.markdown("<div style='text-align: center; color: #666;'>AccuraWall Port | Mauricio Riquelme</div>", unsafe_allow_html=True)
-
-
-
-from fpdf import FPDF
-import base64
-
-def generar_pdf():
-    # Usamos FPDF2
-    pdf = FPDF()
-    pdf.add_page()
-    
-    # Encabezado técnico con Logo (si existe en el servidor)
-    if os.path.exists("Logo.png"):
-        pdf.image("Logo.png", x=10, y=8, w=33)
-    
-    pdf.set_font("Arial", 'B', 16)
-    pdf.cell(0, 10, "Memoria de Cálculo: Travesaños", ln=True, align='C')
-    pdf.set_font("Arial", 'I', 10)
-    pdf.cell(0, 7, "Proyectos Estructurales | Structural Lab", ln=True, align='C')
-    pdf.ln(15)
-
-    # Datos del Proyecto (Geometría y Cargas)
-    pdf.set_fill_color(240, 240, 240)
-    pdf.set_font("Arial", 'B', 11)
-    pdf.cell(0, 10, " 1. INFORMACIÓN DEL PROYECTO", ln=True, fill=True)
-    pdf.set_font("Arial", '', 10)
-    pdf.cell(0, 8, f" Longitud L: {L} mm | Altura U: {U} mm", ln=True)
-    pdf.cell(0, 8, f" Carga Viento q: {q_viento} kgf/m2 | Espesor Vidrio e: {e_vidrio} mm", ln=True)
-    pdf.ln(5)
-
-    # Resultados Estructurales (Ix, Iy, Sx, Sy)
-    pdf.set_font("Arial", 'B', 11)
-    pdf.cell(0, 10, " 2. RESULTADOS DE ANÁLISIS", ln=True, fill=True)
-    pdf.set_font("Arial", '', 10)
-    pdf.cell(95, 8, f" Inercia Ix: {ix:.2f} cm4", border=0)
-    pdf.cell(95, 8, f" Módulo Sx: {sx:.2f} cm3", ln=True)
-    pdf.cell(95, 8, f" Inercia Iy: {iy:.2f} cm4", border=0)
-    pdf.cell(95, 8, f" Módulo Sy: {sy:.2f} cm3", ln=True)
-    pdf.ln(5)
-
-    # Calzos (Métrico 27 mm/m2 o 14 mm/m2)
-    pdf.set_font("Arial", 'B', 11)
-    pdf.cell(0, 10, " 3. ESPECIFICACIÓN DE CALZOS (SETTING BLOCKS)", ln=True, fill=True)
-    pdf.set_font("Arial", '', 10)
-    pdf.cell(0, 8, f" Material: {mat_block} | Dureza: 85 +/- 5 Sh A", ln=True)
-    pdf.cell(0, 8, f" Largo Sugerido: {sb_len:.2f} mm | Posición: {sb_pos:.1f} mm desde extremos", ln=True)
-    
-    return pdf.output()
-
-# --- INTERFAZ DEL BOTÓN ---
-st.sidebar.markdown("---")
-if st.sidebar.button("📄 Preparar Reporte PDF"):
-    try:
-        pdf_bytes = generar_pdf()
-        # Codificación para el navegador
-        b64 = base64.b64encode(pdf_bytes).decode()
-        
-        # Estilo del botón de descarga real
-        download_button_str = f'''
-            <div style="text-align: center; margin-top: 10px;">
-                <a href="data:application/pdf;base64,{b64}" download="Memoria_Travesano_L{int(L)}.pdf" 
-                   style="background-color: #ff9900; color: white; padding: 12px 20px; text-decoration: none; 
-                   border-radius: 5px; font-weight: bold; display: block;">
-                   📥 DESCARGAR AHORA
-                </a>
-            </div>
-        '''
-        st.sidebar.markdown(download_button_str, unsafe_allow_html=True)
-        st.sidebar.info("El archivo está listo. Presiona el botón naranja
