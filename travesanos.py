@@ -146,12 +146,12 @@ with col_sb1:
 
 with col_sb2:
     if os.path.exists("trav.jpg"):
-        # Creamos dos sub-columnas con proporción 3:7 (30% y 70%)
-        # La imagen irá en la primera para que ocupe el 30% del ancho total de col_sb2
-        sub_col1, sub_col2 = st.columns([3, 7]) 
+        # Creamos dos sub-columnas con proporción 4:6 (40% y 60%)
+        # La imagen se ubica en la primera para que ocupe el 40% del ancho de col_sb2
+        sub_col1, sub_col2 = st.columns([4, 6]) 
         with sub_col1:
-            # Al usar use_column_width, la imagen se expande al 100% de la sub-columna de '3'
-            st.image("trav.jpg", caption="Diagrama de Cargas", use_column_width=True)
+            # Eliminamos el texto del caption pasando None
+            st.image("trav.jpg", caption=None, use_column_width=True)
     else:
         st.info("Sube 'trav.jpg' para ver el diagrama.")
 
