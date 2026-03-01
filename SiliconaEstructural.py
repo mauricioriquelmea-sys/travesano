@@ -129,7 +129,7 @@ with col_txt:
     """, unsafe_allow_html=True)
 
 # =================================================================
-# 5. GENERADOR DE PDF PROFESIONAL
+# 5. GENERADOR DE PDF PROFESIONAL (REVISADO)
 # =================================================================
 def generar_pdf_mullion():
     pdf = FPDF()
@@ -143,46 +143,46 @@ def generar_pdf_mullion():
     pdf.cell(0, 7, "Proyectos Estructurales | Structural Lab", ln=True, align='C')
     pdf.ln(15)
 
+    # 1. Datos
     pdf.set_fill_color(240, 240, 240)
     pdf.set_font("Arial", 'B', 11)
     pdf.cell(0, 10, " 1. INFORMACION DEL DISENO", ln=True, fill=True)
     pdf.set_font("Arial", '', 10)
-    pdf.cell(0, 8, f" Alto del Mullion (L): {L} mm | Ancho Tributario (B): {B} mm", ln=True)
-    pdf.cell(0, 8, f" Carga Viento q: {q} kgf/m2 | Distribucion: {distribucion}", ln=True)
-    pdf.ln(5)
+    pdf.cell(0, 8, f" L: {L} mm | B: {B} mm", ln=True)
+    pdf.cell(0, 8, f" Viento: {q} kgf/m2", ln=True)
 
+    # 2. Resultados
+    pdf.ln(5)
     pdf.set_font("Arial", 'B', 11)
     pdf.cell(0, 10, " 2. RESULTADOS ESTRUCTURALES", ln=True, fill=True)
     pdf.set_font("Arial", '', 10)
-    pdf.cell(95, 8, f" Inercia Ix Req: {inercia:.2f} cm4", border=0)
-    pdf.cell(95, 8, f" Modulo Sx Req: {modulo:.2f} cm3", ln=True)
-    pdf.cell(0, 8, f" Criterio de Deflexion: {criterio_sugerido} ({df_admisible:.2f} mm)", ln=True)
-    pdf.cell(0, 8, f" Material Especificado: {material}", ln=True)
-    
-    pdf.set_y(-25)
-    pdf.set_font("Arial", 'I', 8)
-    pdf.cell(0, 10, "Memoria generada por AccuraWall Port - Mauricio Riquelme", align='C')
+    pdf.cell(0, 8, f" Inercia Ix Req: {inercia:.2f} cm4", ln=True)
+    pdf.cell(0, 8, f" Modulo Sx Req: {modulo:.2f} cm3", ln=True)
     
     return pdf.output()
 
 st.sidebar.markdown("---")
-if st.sidebar.button("📄 Preparar Reporte PDF"):
+# Usamos una clave única para el botón
+if st.sidebar.button("📄 Generar Reporte PDF", key="btn_generar"):
     try:
         pdf_bytes = generar_pdf_mullion()
         b64 = base64.b64encode(pdf_bytes).decode()
+        
+        # HTML del botón con estilo forzado
         btn_html = f'''
-            <div style="text-align: center; margin-top: 10px;">
-                <a href="data:application/pdf;base64,{b64}" download="Memoria_Mullion_L{int(L)}mm.pdf" 
+            <div style="text-align: center; margin-top: 15px;">
+                <a href="data:application/pdf;base64,{b64}" download="Memoria_Mullion_L{int(L)}.pdf" 
                    style="background-color: #ff9900; color: white; padding: 12px 20px; text-decoration: none; 
-                   border-radius: 5px; font-weight: bold; display: block;">
-                   📥 DESCARGAR REPORTE
+                   border-radius: 5px; font-weight: bold; display: block; border: none;">
+                   📥 CLIC AQUÍ PARA DESCARGAR
                 </a>
             </div>
         '''
         st.sidebar.markdown(btn_html, unsafe_allow_html=True)
-        st.sidebar.info("El archivo está listo. Presiona el botón naranja arriba.")
+        st.sidebar.success("¡PDF generado con éxito!")
     except Exception as e:
-        st.sidebar.error(f"Error técnico: {e}")
+        st.sidebar.error(f"Error al crear PDF: {e}")
+
 
 # =================================================================
 # 6. GRÁFICO DE SENSIBILIDAD
