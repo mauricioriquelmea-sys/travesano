@@ -195,54 +195,71 @@ st.pyplot(fig)
 st.markdown("---")
 st.markdown("<div style='text-align: center; color: #666;'>AccuraWall Port | Mauricio Riquelme</div>", unsafe_allow_html=True)
 
+
+
 from fpdf import FPDF
 import base64
 
-def generar_pdf(datos):
+def generar_pdf():
+    # Usamos FPDF2
     pdf = FPDF()
     pdf.add_page()
     
-    # Encabezado técnico
-    pdf.set_font("Arial", 'B', 16)
-    pdf.cell(0, 10, "Memoria de Cálculo: Prediseño de Travesaños", ln=True, align='C')
-    pdf.set_font("Arial", '', 10)
-    pdf.cell(0, 10, f"Proyecto: {proyecto} | Item: {item}", ln=True, align='C')
-    pdf.ln(10)
-
-    # Sección 1: Geometría y Carga
-    pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, "1. Parámetros de Diseño", ln=True)
-    pdf.set_font("Arial", '', 11)
-    pdf.cell(0, 8, f"- Longitud (L): {L} mm", ln=True)
-    pdf.cell(0, 8, f"- Ancho Tributario (U): {U} mm", ln=True)
-    pdf.cell(0, 8, f"- Carga de Viento (q): {q_viento} kgf/m2", ln=True)
-    pdf.ln(5)
-
-    # Sección 2: Resultados Estructurales
-    pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, "2. Requerimientos de Sección Mínimos", ln=True)
-    pdf.set_font("Arial", '', 11)
-    pdf.cell(0, 8, f"- Inercia Ix (Viento): {ix:.2f} cm4", ln=True)
-    pdf.cell(0, 8, f"- Inercia Iy (Peso): {iy:.2f} cm4", ln=True)
-    pdf.cell(0, 8, f"- Módulo Sx: {sx:.2f} cm3", ln=True)
-    pdf.cell(0, 8, f"- Módulo Sy: {sy:.2f} cm3", ln=True)
-    pdf.ln(5)
-
-    # Sección 3: Especificación de Calzos (Métrico)
-    pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, "3. Especificación de Setting Blocks", ln=True)
-    pdf.set_font("Arial", '', 11)
-    pdf.cell(0, 8, f"- Material: {mat_block}", ln=True)
-    pdf.cell(0, 8, f"- Largo calculado: {sb_len:.2f} mm", ln=True)
-    pdf.cell(0, 8, f"- Ubicación desde extremos: {sb_pos:.1f} mm", ln=True)
+    # Encabezado técnico con Logo (si existe en el servidor)
+    if os.path.exists("Logo.png"):
+        pdf.image("Logo.png", x=10, y=8, w=33)
     
-    return pdf.output(dest='S')
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(0, 10, "Memoria de Cálculo: Travesaños", ln=True, align='C')
+    pdf.set_font("Arial", 'I', 10)
+    pdf.cell(0, 7, "Proyectos Estructurales | Structural Lab", ln=True, align='C')
+    pdf.ln(15)
 
-# --- BOTÓN DE DESCARGA EN LA INTERFAZ ---
+    # Datos del Proyecto (Geometría y Cargas)
+    pdf.set_fill_color(240, 240, 240)
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(0, 10, " 1. INFORMACIÓN DEL PROYECTO", ln=True, fill=True)
+    pdf.set_font("Arial", '', 10)
+    pdf.cell(0, 8, f" Longitud L: {L} mm | Altura U: {U} mm", ln=True)
+    pdf.cell(0, 8, f" Carga Viento q: {q_viento} kgf/m2 | Espesor Vidrio e: {e_vidrio} mm", ln=True)
+    pdf.ln(5)
+
+    # Resultados Estructurales (Ix, Iy, Sx, Sy)
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(0, 10, " 2. RESULTADOS DE ANÁLISIS", ln=True, fill=True)
+    pdf.set_font("Arial", '', 10)
+    pdf.cell(95, 8, f" Inercia Ix: {ix:.2f} cm4", border=0)
+    pdf.cell(95, 8, f" Módulo Sx: {sx:.2f} cm3", ln=True)
+    pdf.cell(95, 8, f" Inercia Iy: {iy:.2f} cm4", border=0)
+    pdf.cell(95, 8, f" Módulo Sy: {sy:.2f} cm3", ln=True)
+    pdf.ln(5)
+
+    # Calzos (Métrico 27 mm/m2 o 14 mm/m2)
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(0, 10, " 3. ESPECIFICACIÓN DE CALZOS (SETTING BLOCKS)", ln=True, fill=True)
+    pdf.set_font("Arial", '', 10)
+    pdf.cell(0, 8, f" Material: {mat_block} | Dureza: 85 +/- 5 Sh A", ln=True)
+    pdf.cell(0, 8, f" Largo Sugerido: {sb_len:.2f} mm | Posición: {sb_pos:.1f} mm desde extremos", ln=True)
+    
+    return pdf.output()
+
+# --- INTERFAZ DEL BOTÓN ---
 st.sidebar.markdown("---")
-if st.sidebar.button("📄 Generar Reporte PDF"):
-    pdf_output = generar_pdf(None)
-    b64 = base64.b64encode(pdf_output).decode()
-    href = f'<a href="data:application/octet-stream;base64,{b64}" download="Memoria_Travesano_{L}mm.pdf">Haga clic aquí para descargar el PDF</a>'
-    st.sidebar.markdown(href, unsafe_allow_html=True)
-    st.sidebar.success("¡PDF generado con éxito!")
+if st.sidebar.button("📄 Preparar Reporte PDF"):
+    try:
+        pdf_bytes = generar_pdf()
+        # Codificación para el navegador
+        b64 = base64.b64encode(pdf_bytes).decode()
+        
+        # Estilo del botón de descarga real
+        download_button_str = f'''
+            <div style="text-align: center; margin-top: 10px;">
+                <a href="data:application/pdf;base64,{b64}" download="Memoria_Travesano_L{int(L)}.pdf" 
+                   style="background-color: #ff9900; color: white; padding: 12px 20px; text-decoration: none; 
+                   border-radius: 5px; font-weight: bold; display: block;">
+                   📥 DESCARGAR AHORA
+                </a>
+            </div>
+        '''
+        st.sidebar.markdown(download_button_str, unsafe_allow_html=True)
+        st.sidebar.info("El archivo está listo. Presiona el botón naranja
