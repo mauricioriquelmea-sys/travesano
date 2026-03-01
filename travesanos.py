@@ -146,7 +146,11 @@ with col_sb1:
 
 with col_sb2:
     if os.path.exists("trav.jpg"):
-        st.image("trav.jpg", caption="Diagrama de Cargas del Travesaño", use_column_width=True)
+        # Creamos dos sub-columnas iguales (50% cada una)
+        sub_col1, sub_col2 = st.columns([1, 1]) 
+        with sub_col1:
+            # Al usar use_column_width aquí, se ajusta al 100% de la SUB-columna (o sea, 50% de la original)
+            st.image("trav.jpg", caption="Diagrama de Cargas", use_column_width=True)
     else:
         st.info("Sube 'trav.jpg' para ver el diagrama.")
 
