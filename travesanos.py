@@ -5,104 +5,108 @@ import matplotlib.pyplot as plt
 import os
 
 # =================================================================
-# 1. CONFIGURACIÓN, ESTILO Y TÍTULO
+# 1. MOTOR DE CÁLCULO ACTUALIZADO (MÉTRICO)
 # =================================================================
-st.set_page_config(page_title="AccuraWall | Prediseño de Travesaños", layout="wide")
-
-st.markdown("""
-    <style>
-    .main > div { padding-left: 2.5rem; padding-right: 2.5rem; }
-    .stMetric { background-color: #f8f9fa; padding: 15px; border-radius: 10px; border: 1px solid #dee2e6; }
-    .result-box { 
-        background-color: #f0f7ff; padding: 25px; 
-        border-left: 10px solid #003366; border-radius: 8px; margin: 20px 0;
-    }
-    .guide-box {
-        background-color: #fffaf0; padding: 15px;
-        border: 1px solid #ff9900; border-radius: 8px; margin-bottom: 20px;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-st.title("🏛️ Prediseño de Travesaños (Horizontales)")
-st.markdown("#### **Control de Deflexión Combinada y Especificación de Apoyos de Vidrio**")
-st.divider()
-
-# =================================================================
-# 2. SIDEBAR: PARÁMETROS TÉCNICOS Y BOTÓN DE IMAGEN
-# =================================================================
-st.sidebar.header("⚙️ Parámetros de Diseño")
-
-with st.sidebar.expander("📐 Geometría y Cargas", expanded=True):
-    L = st.number_input("Longitud del Travesaño (L) [mm]", value=1500.0, step=10.0)
-    U = st.number_input("Altura de Vidrio Superior (U) [mm]", value=2500.0, step=10.0)
-    q_viento = st.number_input("Carga de Viento (q) [kgf/m²]", value=100.0, step=5.0)
-    e_vidrio = st.number_input("Espesor Total Vidrio (e) [mm]", value=12.0)
-
-with st.sidebar.expander("🧪 Material y Setting Blocks", expanded=True):
-    material = st.selectbox("Material del Perfil", 
-                            ["Aluminio 6063 - T6", "Aluminio 6063 - T5", "Acero A42-27ES"])
-    
-    st.markdown("---")
-    mat_block = st.selectbox("Material del Calzo", 
-                             ["Neopreno/EPDM/Silicona", "Plomo (Lead)", "Lock-strip Gasket"])
-    pos_block = st.radio("Posición de Apoyo", ["L/4 (Preferida)", "L/8 (Alternativa)"])
-    
-    # BOTÓN PARA CARGAR IMAGEN DE SETTING BLOCKS
-    if st.button("Ver Guía de Posicionamiento (setting.jpg)"):
-        if os.path.exists("setting.jpg"):
-            st.image("setting.jpg", caption="Criterios de Posicionamiento de Calzos")
-        else:
-            st.error("Archivo 'setting.jpg' no encontrado.")
-
-# =================================================================
-# 3. MOTOR DE CÁLCULO (INCLUYE FÓRMULA DE CALZOS)
-# =================================================================
-def calcular_todo():
-    # Propiedades del Material
+def calcular_todo_metrico():
+    # Propiedades del Material (Aluminio/Acero)
     E = 21000000000 if "Acero" in material else 7101002754
     Fcy = 27532337.75 if "Acero" in material else (17576739.5 if "T6" in material else 11249113.3)
 
     L_m, U_m, e_m = L / 1000, U / 1000, e_vidrio / 1000
     
-    # 1. Deflexiones Admisibles
+    # --- Criterios de Deformación ---
     df_h_adm = (L / 175) if L < 4115 else ((L / 240) + 6.35)
     df_v_adm = min(L / 360, 3.18)
 
-    # 2. Inercias y Módulos
-    # Viento (Ix)
+    # --- Inercias y Módulos ---
+    # Eje X-X (Viento)
     ratio_h = U_m / (2 * L_m)
     factor_h = (1 - (4/3) * (ratio_h**2)) if ratio_h < 1 else 1.0
-    Ix_req = ((5 / 384) * q_viento * U_m * L_m**4 / (E * (df_h_adm/1000))) * factor_h
+    ix_val = ((5 / 384) * q_viento * U_m * L_m**4 / (E * (df_h_adm/1000))) * factor_h
     
-    # Peso (Iy)
-    peso_v = 2500 * e_m * U_m 
-    Iy_req = (5 / 384) * peso_v * L_m**4 / (E * (df_v_adm/1000))
+    # Eje Y-Y (Peso Vidrio)
+    peso_lineal = 2500 * e_m * U_m 
+    iy_val = (5 / 384) * peso_lineal * L_m**4 / (E * (df_v_adm/1000))
 
     Fb = 0.6 * Fcy
-    Sx_req = ((1/8 * q_viento * U_m * L_m**2) / Fb) * 100**3
-    Sy_req = ((1/8 * peso_v * L_m**2) / Fb) * 100**3
+    sx_val = ((1/8 * q_viento * U_m * L_m**2) / Fb) * 100**3
+    sy_val = ((1/8 * peso_lineal * L_m**2) / Fb) * 100**3
 
-    # 3. CÁLCULO DE CALZOS (SEGÚN IMAGEN)
-    area_sqft = (L * U) / 92903.04
+    # --- CÁLCULO DE CALZOS (UNIDADES MÉTRICAS) ---
+    area_m2 = L_m * U_m
     
+    # Aplicación de fórmulas: Neopreno (27 mm/m2) / PVC (14 mm/m2)
     if mat_block == "Neopreno/EPDM/Silicona":
-        len_inch = 0.1 * area_sqft
-        min_inch = 4.0 if L > 1219.2 else 0.0 # L > 48"
-    elif mat_block == "Plomo (Lead)":
-        len_inch = 0.05 * area_sqft
-        min_inch = 4.0 if L > 1219.2 else 0.0
-    else: # Lock-strip Gasket
-        len_inch = 0.5 * area_sqft
-        min_inch = 6.0
+        longitud_calc = 27 * area_m2
+        minimo_norma = 100.0 if L > 1219.2 else 50.0 # Mínimos de seguridad en mm
+    elif mat_block == "PVC":
+        longitud_calc = 14 * area_m2
+        minimo_norma = 100.0 if L > 1219.2 else 50.0
+    else: # Plomo u otros (Referencia anterior)
+        longitud_calc = 25.4 * (0.05 * (area_m2 * 10.764))
+        minimo_norma = 100.0
     
-    final_sb_mm = max(len_inch, min_inch) * 25.4
+    final_sb_mm = max(longitud_calc, minimo_norma)
     dist_sb_mm = L * (0.25 if "L/4" in pos_block else 0.125)
 
-    return (Ix_req * 100**4, Iy_req * 100**4, Sx_req, Sy_req, 
-            final_sb_mm, dist_sb_mm, area_sqft, df_h_adm, df_v_adm)
+    return (ix_val * 100**4, iy_val * 100**4, sx_val, sy_val, 
+            final_sb_mm, dist_sb_mm, area_m2, df_h_adm, df_v_adm)
 
-ix, iy, sx, sy, sb_len, sb_pos, area_ft2, d_h, d_v = calcular_todo()
+# =================================================================
+# 2. INTERFAZ DE USUARIO (SIDEBAR Y BOTONES)
+# =================================================================
+st.sidebar.header("⚙️ Parámetros de Diseño")
+
+with st.sidebar.expander("📐 Geometría y Cargas", expanded=True):
+    L = st.number_input("Longitud Travesaño (L) [mm]", value=1500.0)
+    U = st.number_input("Altura Vidrio Superior (U) [mm]", value=2500.0)
+    q_viento = st.number_input("Carga Viento (q) [kgf/m²]", value=100.0)
+    e_vidrio = st.number_input("Espesor Vidrio (e) [mm]", value=12.0)
+
+with st.sidebar.expander("🛠️ Configuración de Calzos", expanded=True):
+    mat_block = st.selectbox("Material del Calzo", ["Neopreno/EPDM/Silicona", "PVC"])
+    pos_block = st.radio("Posición de Apoyo", ["L/4 (Preferida)", "L/8 (Alternativa)"])
+    
+    # Botón dinámico para la guía
+    if st.button("Ver Guía de Calzos"):
+        if os.path.exists("setting.jpg"):
+            st.image("setting.jpg", caption="Ubicación de tacos de asentamiento")
+
+# Ejecución de cálculos
+ix, iy, sx, sy, sb_len, sb_pos, area, d_h, d_v = calcular_todo_metrico()
+
+# =================================================================
+# 3. DESPLIEGUE DE RESULTADOS
+# =================================================================
+st.subheader("📊 Requerimientos de Sección y Calzos")
+
+# Filas de Inercia y Módulo
+c1, c2 = st.columns(2)
+with c1: st.metric("Inercia Ix (Viento)", f"{ix:.2f} cm⁴")
+with c2: st.metric("Inercia Iy (Peso)", f"{iy:.2f} cm⁴")
+
+c3, c4 = st.columns(2)
+with c3: st.metric("Módulo Sx", f"{sx:.2f} cm³")
+with c4: st.metric("Módulo Sy", f"{sy:.2f} cm³")
+
+st.divider()
+
+# Resultados de Calzos con la nueva fórmula métrica
+st.markdown(f"""
+<div style="background-color: #fffaf0; padding: 20px; border: 1px solid #ff9900; border-radius: 8px;">
+    <h4 style="color: #ff9900; margin-top:0;">Especificación de Calzos (Métrico):</h4>
+    <ul>
+        <li><strong>Área del Vidrio:</strong> {area:.2f} m²</li>
+        <li><strong>Fórmula aplicada:</strong> {"27 mm/m²" if mat_block == "Neopreno/EPDM/Silicona" else "14 mm/m²"}</li>
+        <li><strong>Largo calculado por bloque:</strong> {sb_len:.2f} mm</li>
+        <li><strong>Distancia desde extremos:</strong> {sb_pos:.1f} mm</li>
+    </ul>
+</div>
+""", unsafe_allow_html=True)
+
+# Imagen del travesaño siempre visible
+if os.path.exists("trav.jpg"):
+    st.image("trav.jpg", caption="Detalle de Travesaño", width=500)
 
 # =================================================================
 # 4. DESPLIEGUE DE RESULTADOS
