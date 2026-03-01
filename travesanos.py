@@ -80,155 +80,60 @@ with st.sidebar.expander("🧪 Material y Setting Blocks", expanded=True):
     pos_block = st.radio("Posición de Apoyo", ["L/4 (Preferida)", "L/8 (Alternativa)"])
 
 # =================================================================
-# 3. MOTOR DE CÁLCULO ESTÁTICO
+# 3. MOTOR DE CÁLCULO ACTUALIZADO
 # =================================================================
-def calcular_requerimientos_travesano():
-    # Propiedades del Material (Módulo de Elasticidad E y Fluencia Fcy)
+def calcular_requerimientos_completos():
+    # Propiedades del Material
     if material == "Aluminio 6063 - T6":
-        E, Fcy = 7101002754, 17576739.5 # kgf/m2
+        E, Fcy = 7101002754, 17576739.5
     elif material == "Aluminio 6063 - T5":
         E, Fcy = 7101002754, 11249113.3
     else: # Acero
         E, Fcy = 21000000000, 27532337.75
 
-    # Conversión de unidades de entrada a metros
-    L_m = L / 1000
-    U_m = U / 1000
-    e_m = e_vidrio / 1000
-    Df_h_m = df_h_adm / 1000
-    Df_v_m = df_v_adm / 1000
+    L_m, U_m, e_m = L / 1000, U / 1000, e_vidrio / 1000
+    Df_h_m, Df_v_m = df_h_adm / 1000, df_v_adm / 1000
 
-    # --- A. CÁLCULO ANTE CARGA DE VIENTO (Inercia Ix requerida) ---
-    # Se asume carga trapezoidal real (como en el mullion anterior)
-    # Ancho tributario para el travesaño es la altura del vidrio superior (U)
+    # --- EJE X-X (Viento / Inercia Ix) ---
     M_viento = (1/8) * (q_viento * U_m) * (L_m)**2
-    
-    # Factor de ajuste para carga trapezoidal real (B/2L en mullion, aquí U/2L)
     ratio_h = U_m / (2 * L_m)
-    factor_h = (1 - (4/3) * (ratio_h**2)) if ratio_h < 1 else 1.0 # ratio_h=1 para rectangular pura
-    
-    # Inercia Ix requerida para controlar deflexión horizontal
-    Ix_req_m4 = ((5 / 384) * q_viento * U_m * L_m**4 / (E * Df_h_m)) * factor_h
+    factor_h = (1 - (4/3) * (ratio_h**2)) if ratio_h < 1 else 1.0
+    Ix_req = ((5 / 384) * q_viento * U_m * L_m**4 / (E * Df_h_m)) * factor_h
 
-    # --- B. CÁLCULO ANTE PESO PROPIO DEL VIDRIO (Inercia Iy requerida) ---
-    # Densidad del vidrio ~2500 kgf/m3
-    peso_vidrio_kgml = 2500 * e_m * U_m  # Carga lineal debida al peso
-    
-    # Momento flector debido al peso (Iy trabaja aquí)
+    # --- EJE Y-Y (Peso Vidrio / Inercia Iy) ---
+    peso_vidrio_kgml = 2500 * e_m * U_m 
     M_peso = (1/8) * peso_vidrio_kgml * (L_m)**2
-    
-    # Inercia Iy requerida para controlar deflexión vertical (L/360 o 3.18mm)
-    # Se asume carga uniforme (DL) para el peso propio
-    Iy_req_m4 = (5 / 384) * peso_vidrio_kgml * L_m**4 / (E * Df_v_m)
+    Iy_req = (5 / 384) * peso_vidrio_kgml * L_m**4 / (E * Df_v_m)
 
-    # --- C. CÁLCULO DE SETTING BLOCKS ---
-    # Área del vidrio en pies cuadrados (1 sq ft = 92903.04 mm2)
-    area_glass_sqft = (L * U) / 92903.04
-    
-    # Longitud requerida por pulgada por sqft según material
-    if mat_block == "Neopreno/EPDM/Silicona":
-        len_inch = 0.1 * area_glass_sqft #
-        min_len_inch = 4.0 if L > 1219.2 else 0.0  # L > 48"
-    elif mat_block == "Plomo (Lead)":
-        len_inch = 0.05 * area_glass_sqft #
-        min_len_inch = 4.0 if L > 1219.2 else 0.0 #
-    else: # Lock-strip Gasket
-        len_inch = 0.5 * area_glass_sqft #
-        min_len_inch = 6.0 #
-    
-    # Longitud final del bloque (pulgadas a mm)
-    final_len_inch = max(len_inch, min_len_inch) #
-    block_len_mm = final_len_inch * 25.4 #
-    
-    # Ubicación sugerida desde los extremos (L/4 o L/8)
-    factor_pos = 0.25 if pos_block.startswith("L/4") else 0.125
-    block_pos_mm = L * factor_pos #
-
-    # Conversión de resultados finales a unidades cm
-    Ix_req_cm4 = Ix_req_m4 * 100**4
-    Iy_req_cm4 = Iy_req_m4 * 100**4
-    
-    # Requerimiento de Módulo Resistente (Sx) ante viento
+    # --- MÓDULOS RESISTENTES (S = M / Fb) ---
     Fb = 0.6 * Fcy
-    Sx_req_cm3 = (M_viento / Fb) * 100**3
+    Sx_req = (M_viento / Fb) * 100**3 # cm3
+    Sy_req = (M_peso / Fb) * 100**3   # cm3
 
-    return Ix_req_cm4, Iy_req_cm4, Sx_req_cm3, block_len_mm, block_pos_mm, area_glass_sqft
+    return Ix_req * 100**4, Iy_req * 100**4, Sx_req, Sy_req
 
-# Ejecutar cálculos estáticos
-ix, iy, sx, sb_len, sb_pos, glass_area = calcular_requerimientos_travesano()
+ix, iy, sx, sy = calcular_requerimientos_completos()
 
 # =================================================================
-# 4. DESPLIEGUE DE RESULTADOS E IMÁGENES GUÍA
+# 4. DESPLIEGUE EN DOS FILAS
 # =================================================================
 st.subheader("📊 Resumen de Requerimientos Mínimos de Sección")
 
-# Métricas principales de inercia
-c1, c2, c3 = st.columns(3)
-with c1:
-    st.metric("Inercia Ix (Viento)", f"{ix:.2f} cm⁴", help=f"Controlada por {crit_h_sug}")
-with c2:
-    st.metric("Inercia Iy (Peso Vidrio)", f"{iy:.2f} cm⁴", help="Controlada por min(L/360, 3.18mm)")
-with c3:
-    st.metric("Módulo Sx (Resistencia)", f"{sx:.2f} cm³")
+# FILA 1: INERCIAS
+fila1_c1, fila1_c2 = st.columns(2)
+with fila1_c1:
+    st.metric("Inercia Ix (Viento)", f"{ix:.2f} cm⁴")
+with fila1_c2:
+    st.metric("Inercia Iy (Peso Vidrio)", f"{iy:.2f} cm⁴")
+
+# FILA 2: MÓDULOS SECCIONALES
+fila2_c1, fila2_c2 = st.columns(2)
+with fila2_c1:
+    st.metric("Módulo Sx (Resistencia Viento)", f"{sx:.2f} cm³")
+with fila2_c2:
+    st.metric("Módulo Sy (Resistencia Peso)", f"{sy:.2f} cm³")
 
 st.divider()
-
-# Sección de Guías Visuales e Imágenes
-col_guias, col_spec = st.columns([1.2, 1])
-
-with col_guias:
-    st.markdown("### 🖼️ Guías Visuales de Diseño")
-    
-    # Carga dinámica de imagen del travesaño (trav.jpg)
-    img_trav = "trav.jpg"
-    if os.path.exists(img_trav):
-        st.image(img_trav, caption="Diagrama de Cargas del Travesaño", use_column_width=True)
-    else:
-        st.warning(f"💡 Archivo '{img_trav}' no encontrado en el repositorio. Sube la imagen del travesaño.")
-    
-    st.markdown("---")
-    
-    # Carga dinámica de imagen de setting blocks (setting.jpg)
-    img_setting = "setting.jpg"
-    if os.path.exists(img_setting):
-        st.image(img_setting, caption="Guía de Posicionamiento de Setting Blocks (L/4 vs L/8)", use_column_width=True)
-    else:
-        st.warning(f"💡 Archivo '{img_setting}' no encontrado en el repositorio. Sube la imagen de los calzos.")
-
-with col_spec:
-    st.markdown("### ✅ Especificación Final y Apoyos")
-    
-    # Caja de resultados del perfil
-    st.markdown(f"""
-    <div class="result-box" style="margin-top:0;">
-        <h4 style="margin-top:0;">Requerimientos del Perfil:</h4>
-        <ul>
-            <li><strong>Largo Travesaño L:</strong> {L:.0f} mm</li>
-            <li><strong>Altura Superior U:</strong> {U:.0f} mm</li>
-            <li><strong>Material:</strong> {material}</li>
-            <li><strong>Inercia Ix Mínima:</strong> {ix:.2f} cm⁴</li>
-            <li><strong>Inercia Iy Mínima:</strong> {iy:.2f} cm⁴</li>
-        </ul>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Caja de resultados de los setting blocks
-    pos_text = "L/4 (Preferida)" if sb_pos == L*0.25 else "L/8 (Alternativa)"
-    st.markdown(f"""
-    <div class="guide-box">
-        <h4 style="margin-top:0; color: #ff9900;">Especificación de Setting Blocks:</h4>
-        <ul>
-            <li><strong>Área del Vidrio:</strong> {glass_area:.2f} ft²</li>
-            <li><strong>Material Calzo:</strong> {mat_block}</li>
-            <li><strong>Longitud cada bloque:</strong> {sb_len:.1f} mm</li>
-            <li><strong>Ubicar a:</strong> {sb_pos:.1f} mm desde extremos</li>
-            <li><strong>Criterio de Posición:</strong> {pos_text}</li>
-        </ul>
-        <p style="font-size: 0.8rem; color: #666; margin-top:10px;">
-            Nota: La longitud mínima del bloque nunca debe ser menor a 4" (101.6mm) para anchos > 48".
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
 
 # =================================================================
 # 5. GRÁFICOS DE SENSIBILIDAD (Ix e Iy vs LONGITUD)
