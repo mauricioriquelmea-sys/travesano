@@ -131,11 +131,12 @@ with col_sb2:
 # =================================================================
 # 5. GENERADOR DE PDF PROFESIONAL
 # =================================================================
+# --- GENERADOR DE PDF CORREGIDO ---
 def generar_pdf():
     pdf = FPDF()
     pdf.add_page()
     
-    # Encabezado con Logo
+    # Encabezado con Logo (si existe en el servidor)
     if os.path.exists("Logo.png"):
         pdf.image("Logo.png", x=10, y=8, w=33)
     
@@ -145,7 +146,7 @@ def generar_pdf():
     pdf.cell(0, 7, "Proyectos Estructurales | Structural Lab", ln=True, align='C')
     pdf.ln(15)
 
-    # Datos del Proyecto
+    # 1. Datos del Proyecto
     pdf.set_fill_color(240, 240, 240)
     pdf.set_font("Arial", 'B', 11)
     pdf.cell(0, 10, " 1. INFORMACION DEL PROYECTO", ln=True, fill=True)
@@ -154,7 +155,7 @@ def generar_pdf():
     pdf.cell(0, 8, f" Carga Viento q: {q_viento} kgf/m2 | Espesor Vidrio e: {e_vidrio} mm", ln=True)
     pdf.ln(5)
 
-    # Resultados
+    # 2. Resultados de Análisis
     pdf.set_font("Arial", 'B', 11)
     pdf.cell(0, 10, " 2. RESULTADOS DE ANALISIS", ln=True, fill=True)
     pdf.set_font("Arial", '', 10)
@@ -164,19 +165,22 @@ def generar_pdf():
     pdf.cell(95, 8, f" Modulo Sy: {sy:.2f} cm3", ln=True)
     pdf.ln(5)
 
-    # Calzos
+    # 3. Especificación de Calzos
+    # Aplicando criterios métricos: 27 mm/m2 o 14 mm/m2
     pdf.set_font("Arial", 'B', 11)
-    pdf.cell(0, 10, " 3. ESPECIFICACION DE CALZOS", ln=True, fill=True)
+    pdf.cell(0, 10, " 3. ESPECIFICACION DE CALZOS (SETTING BLOCKS)", ln=True, fill=True)
     pdf.set_font("Arial", '', 10)
     pdf.cell(0, 8, f" Material: {mat_block} | Dureza: 85 +/- 5 Sh A", ln=True)
-    pdf.cell(0, 8, f" Largo Sugerido: {sb_l:.2f} mm | Posicion: {sb_p:.1f} mm", ln=True)
+    pdf.cell(0, 8, f" Largo Sugerido: {sb_l:.2f} mm | Posicion: {sb_p:.1f} mm desde extremos", ln=True)
     
-    return pdf.output(dest='S').encode('latin-1')
+    # IMPORTANTE: Eliminamos .encode() porque output() ya entrega bytes
+    return pdf.output()
 
 st.sidebar.markdown("---")
 if st.sidebar.button("📄 Preparar Reporte PDF"):
     try:
         pdf_bytes = generar_pdf()
+        # Convertimos los bytes directamente a base64 para el navegador
         b64 = base64.b64encode(pdf_bytes).decode()
         
         btn_html = f'''
@@ -189,7 +193,7 @@ if st.sidebar.button("📄 Preparar Reporte PDF"):
             </div>
         '''
         st.sidebar.markdown(btn_html, unsafe_allow_html=True)
-        st.sidebar.info("Archivo listo. Presione el botón naranja.")
+        st.sidebar.info("El archivo está listo. Presiona el botón naranja arriba.")
     except Exception as e:
         st.sidebar.error(f"Error técnico: {e}")
 
