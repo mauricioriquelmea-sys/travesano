@@ -175,45 +175,42 @@ def generar_pdf_travesano():
     pdf.cell(0, 10, "Memoria generada por AccuraWall Port - Mauricio Riquelme", align='C')
     return pdf.output()
 
+# --- BOTÓN DE DESCARGA PROFESIONAL (ESTILO CAPTURA) ---
+st.sidebar.markdown("---")
 try:
-    # Generamos los bytes y el enlace de descarga directamente
-    pdf_bytes = generar_pdf_travesano()
+    pdf_bytes = generar_pdf() # Asegúrate que esta función retorne bytes
     b64 = base64.b64encode(pdf_bytes).decode()
-    file_name = f"Memoria_Travesano_L{int(L)}.pdf"
-
-    # CSS para que el botón sea idéntico a los de Proyectos Estructurales
+    
+    # CSS para eliminar subrayado y dar formato de botón real
     btn_html = f'''
         <style>
-        .download-btn {{
-            display: inline-flex;
+        .main-btn {{
+            display: flex;
             align-items: center;
             justify-content: center;
             background-color: #003366;
             color: white !important;
-            padding: 0.7rem 1rem;
-            width: 100%;
-            text-decoration: none;
+            padding: 12px 10px;
+            text-decoration: none !important;
             border-radius: 8px;
             font-weight: bold;
-            font-family: sans-serif;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            border: 1px solid #002244;
+            width: 100%;
+            border: none;
+            font-size: 14px;
+            transition: 0.3s;
         }}
-        .download-btn:hover {{
+        .main-btn:hover {{
             background-color: #004488;
-            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
-            transform: translateY(-1px);
+            text-decoration: none !important;
         }}
         </style>
-        <a class="download-btn" href="data:application/pdf;base64,{b64}" download="{file_name}">
+        <a class="main-btn" href="data:application/pdf;base64,{b64}" download="Memoria_Calculo.pdf">
             📥 DESCARGAR MEMORIA PDF
         </a>
     '''
     st.sidebar.markdown(btn_html, unsafe_allow_html=True)
-
 except Exception as e:
-    st.sidebar.error(f"Error técnico en PDF: {e}")
+    st.sidebar.error(f"Error al generar enlace: {e}")
 
 # =================================================================
 # 6. GRÁFICOS DE SENSIBILIDAD
