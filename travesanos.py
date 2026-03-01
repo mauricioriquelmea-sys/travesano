@@ -128,34 +128,33 @@ with col_sb2:
         sub1, sub2 = st.columns([4, 6])
         with sub1: st.image("trav.jpg", use_column_width=True)
 
+
 # =================================================================
-# 5. GENERADOR DE PDF PROFESIONAL
+# 5. GENERADOR DE PDF PROFESIONAL (BOTÓN ESTILIZADO)
 # =================================================================
-# --- GENERADOR DE PDF CORREGIDO ---
-def generar_pdf():
+st.sidebar.markdown("---")
+
+def generar_pdf_travesano():
     pdf = FPDF()
     pdf.add_page()
-    
-    # Encabezado con Logo (si existe en el servidor)
     if os.path.exists("Logo.png"):
         pdf.image("Logo.png", x=10, y=8, w=33)
     
     pdf.set_font("Arial", 'B', 16)
     pdf.cell(0, 10, "Memoria de Calculo: Travesaños", ln=True, align='C')
     pdf.set_font("Arial", 'I', 10)
-    pdf.cell(0, 7, "Proyectos Estructurales | Structural Lab", ln=True, align='C')
+    pdf.cell(0, 7, "Proyectos Estructurales | Mauricio Riquelme", ln=True, align='C')
     pdf.ln(15)
 
     # 1. Datos del Proyecto
-    pdf.set_fill_color(240, 240, 240)
-    pdf.set_font("Arial", 'B', 11)
+    pdf.set_fill_color(240, 240, 240); pdf.set_font("Arial", 'B', 11)
     pdf.cell(0, 10, " 1. INFORMACION DEL PROYECTO", ln=True, fill=True)
     pdf.set_font("Arial", '', 10)
     pdf.cell(0, 8, f" Longitud L: {L} mm | Altura U: {U} mm", ln=True)
     pdf.cell(0, 8, f" Carga Viento q: {q_viento} kgf/m2 | Espesor Vidrio e: {e_vidrio} mm", ln=True)
     pdf.ln(5)
 
-    # 2. Resultados de Análisis
+    # 2. Resultados
     pdf.set_font("Arial", 'B', 11)
     pdf.cell(0, 10, " 2. RESULTADOS DE ANALISIS", ln=True, fill=True)
     pdf.set_font("Arial", '', 10)
@@ -165,37 +164,56 @@ def generar_pdf():
     pdf.cell(95, 8, f" Modulo Sy: {sy:.2f} cm3", ln=True)
     pdf.ln(5)
 
-    # 3. Especificación de Calzos
-    # Aplicando criterios métricos: 27 mm/m2 o 14 mm/m2
+    # 3. Calzos
     pdf.set_font("Arial", 'B', 11)
-    pdf.cell(0, 10, " 3. ESPECIFICACION DE CALZOS (SETTING BLOCKS)", ln=True, fill=True)
+    pdf.cell(0, 10, " 3. ESPECIFICACION DE CALZOS", ln=True, fill=True)
     pdf.set_font("Arial", '', 10)
     pdf.cell(0, 8, f" Material: {mat_block} | Dureza: 85 +/- 5 Sh A", ln=True)
-    pdf.cell(0, 8, f" Largo Sugerido: {sb_l:.2f} mm | Posicion: {sb_p:.1f} mm desde extremos", ln=True)
+    pdf.cell(0, 8, f" Largo Sugerido: {sb_l:.2f} mm | Posicion: {sb_p:.1f} mm", ln=True)
     
-    # IMPORTANTE: Eliminamos .encode() porque output() ya entrega bytes
+    pdf.set_y(-25); pdf.set_font("Arial", 'I', 8)
+    pdf.cell(0, 10, "Memoria generada por AccuraWall Port - Mauricio Riquelme", align='C')
     return pdf.output()
 
-st.sidebar.markdown("---")
-if st.sidebar.button("📄 Preparar Reporte PDF"):
-    try:
-        pdf_bytes = generar_pdf()
-        # Convertimos los bytes directamente a base64 para el navegador
-        b64 = base64.b64encode(pdf_bytes).decode()
-        
-        btn_html = f'''
-            <div style="text-align: center; margin-top: 10px;">
-                <a href="data:application/pdf;base64,{b64}" download="Memoria_Travesano_L{int(L)}.pdf" 
-                   style="background-color: #ff9900; color: white; padding: 12px 20px; text-decoration: none; 
-                   border-radius: 5px; font-weight: bold; display: block;">
-                   📥 DESCARGAR AHORA
-                </a>
-            </div>
-        '''
-        st.sidebar.markdown(btn_html, unsafe_allow_html=True)
-        st.sidebar.info("El archivo está listo. Presiona el botón naranja arriba.")
-    except Exception as e:
-        st.sidebar.error(f"Error técnico: {e}")
+try:
+    # Generamos los bytes y el enlace de descarga directamente
+    pdf_bytes = generar_pdf_travesano()
+    b64 = base64.b64encode(pdf_bytes).decode()
+    file_name = f"Memoria_Travesano_L{int(L)}.pdf"
+
+    # CSS para que el botón sea idéntico a los de Proyectos Estructurales
+    btn_html = f'''
+        <style>
+        .download-btn {{
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #003366;
+            color: white !important;
+            padding: 0.7rem 1rem;
+            width: 100%;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-family: sans-serif;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: 1px solid #002244;
+        }}
+        .download-btn:hover {{
+            background-color: #004488;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+            transform: translateY(-1px);
+        }}
+        </style>
+        <a class="download-btn" href="data:application/pdf;base64,{b64}" download="{file_name}">
+            📥 DESCARGAR MEMORIA PDF
+        </a>
+    '''
+    st.sidebar.markdown(btn_html, unsafe_allow_html=True)
+
+except Exception as e:
+    st.sidebar.error(f"Error técnico en PDF: {e}")
 
 # =================================================================
 # 6. GRÁFICOS DE SENSIBILIDAD
