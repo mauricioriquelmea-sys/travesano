@@ -128,12 +128,9 @@ with col_sb2:
         sub1, sub2 = st.columns([4, 6])
         with sub1: st.image("trav.jpg", use_column_width=True)
 
-
 # =================================================================
-# 5. GENERADOR DE PDF PROFESIONAL (BOTÓN ESTILIZADO)
+# 5. GENERADOR DE PDF PROFESIONAL (ESTILO PROYECTOS ESTRUCTURALES)
 # =================================================================
-st.sidebar.markdown("---")
-
 def generar_pdf_travesano():
     pdf = FPDF()
     pdf.add_page()
@@ -143,45 +140,29 @@ def generar_pdf_travesano():
     pdf.set_font("Arial", 'B', 16)
     pdf.cell(0, 10, "Memoria de Calculo: Travesaños", ln=True, align='C')
     pdf.set_font("Arial", 'I', 10)
-    pdf.cell(0, 7, "Proyectos Estructurales | Mauricio Riquelme", ln=True, align='C')
+    pdf.cell(0, 7, "Proyectos Estructurales | Structural Lab", ln=True, align='C')
     pdf.ln(15)
 
-    # 1. Datos del Proyecto
+    # 1. Datos y 2. Resultados (Compactos para el PDF)
     pdf.set_fill_color(240, 240, 240); pdf.set_font("Arial", 'B', 11)
-    pdf.cell(0, 10, " 1. INFORMACION DEL PROYECTO", ln=True, fill=True)
+    pdf.cell(0, 10, " 1. INFORMACION Y RESULTADOS", ln=True, fill=True)
     pdf.set_font("Arial", '', 10)
-    pdf.cell(0, 8, f" Longitud L: {L} mm | Altura U: {U} mm", ln=True)
-    pdf.cell(0, 8, f" Carga Viento q: {q_viento} kgf/m2 | Espesor Vidrio e: {e_vidrio} mm", ln=True)
-    pdf.ln(5)
-
-    # 2. Resultados
-    pdf.set_font("Arial", 'B', 11)
-    pdf.cell(0, 10, " 2. RESULTADOS DE ANALISIS", ln=True, fill=True)
-    pdf.set_font("Arial", '', 10)
-    pdf.cell(95, 8, f" Inercia Ix: {ix:.2f} cm4", border=0)
-    pdf.cell(95, 8, f" Modulo Sx: {sx:.2f} cm3", ln=True)
-    pdf.cell(95, 8, f" Inercia Iy: {iy:.2f} cm4", border=0)
-    pdf.cell(95, 8, f" Modulo Sy: {sy:.2f} cm3", ln=True)
-    pdf.ln(5)
-
-    # 3. Calzos
-    pdf.set_font("Arial", 'B', 11)
-    pdf.cell(0, 10, " 3. ESPECIFICACION DE CALZOS", ln=True, fill=True)
-    pdf.set_font("Arial", '', 10)
-    pdf.cell(0, 8, f" Material: {mat_block} | Dureza: 85 +/- 5 Sh A", ln=True)
-    pdf.cell(0, 8, f" Largo Sugerido: {sb_l:.2f} mm | Posicion: {sb_p:.1f} mm", ln=True)
+    pdf.cell(0, 8, f" L: {L} mm | U: {U} mm | Viento q: {q_viento} kgf/m2", ln=True)
+    pdf.cell(0, 8, f" Ix Req: {ix:.2f} cm4 | Sx Req: {sx:.2f} cm3 | Iy Req: {iy:.2f} cm4", ln=True)
     
     pdf.set_y(-25); pdf.set_font("Arial", 'I', 8)
     pdf.cell(0, 10, "Memoria generada por AccuraWall Port - Mauricio Riquelme", align='C')
     return pdf.output()
 
-# --- BOTÓN DE DESCARGA PROFESIONAL (ESTILO CAPTURA) ---
+# --- BOTÓN DE DESCARGA AZUL (SIN SUBRAYADO Y EN UNA LÍNEA) ---
 st.sidebar.markdown("---")
 try:
-    pdf_bytes = generar_pdf() # Asegúrate que esta función retorne bytes
+    # Llamamos a la función correcta definida arriba
+    pdf_bytes = generar_pdf_travesano()
     b64 = base64.b64encode(pdf_bytes).decode()
+    file_name = f"Memoria_Travesano_L{int(L)}.pdf"
     
-    # CSS para eliminar subrayado y dar formato de botón real
+    # CSS para que el botón sea idéntico a tu portal, sin subrayado
     btn_html = f'''
         <style>
         .main-btn {{
@@ -204,13 +185,16 @@ try:
             text-decoration: none !important;
         }}
         </style>
-        <a class="main-btn" href="data:application/pdf;base64,{b64}" download="Memoria_Calculo.pdf">
+        <a class="main-btn" href="data:application/pdf;base64,{b64}" download="{file_name}">
             📥 DESCARGAR MEMORIA PDF
         </a>
     '''
     st.sidebar.markdown(btn_html, unsafe_allow_html=True)
+
 except Exception as e:
-    st.sidebar.error(f"Error al generar enlace: {e}")
+    # Mensaje de error corregido sin comillas abiertas
+    st.sidebar.error(f"Error técnico: {e}")
+
 
 # =================================================================
 # 6. GRÁFICOS DE SENSIBILIDAD
