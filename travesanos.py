@@ -194,3 +194,55 @@ st.pyplot(fig)
 
 st.markdown("---")
 st.markdown("<div style='text-align: center; color: #666;'>AccuraWall Port | Mauricio Riquelme</div>", unsafe_allow_html=True)
+
+from fpdf import FPDF
+import base64
+
+def generar_pdf(datos):
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # Encabezado técnico
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(0, 10, "Memoria de Cálculo: Prediseño de Travesaños", ln=True, align='C')
+    pdf.set_font("Arial", '', 10)
+    pdf.cell(0, 10, f"Proyecto: {proyecto} | Item: {item}", ln=True, align='C')
+    pdf.ln(10)
+
+    # Sección 1: Geometría y Carga
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, "1. Parámetros de Diseño", ln=True)
+    pdf.set_font("Arial", '', 11)
+    pdf.cell(0, 8, f"- Longitud (L): {L} mm", ln=True)
+    pdf.cell(0, 8, f"- Ancho Tributario (U): {U} mm", ln=True)
+    pdf.cell(0, 8, f"- Carga de Viento (q): {q_viento} kgf/m2", ln=True)
+    pdf.ln(5)
+
+    # Sección 2: Resultados Estructurales
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, "2. Requerimientos de Sección Mínimos", ln=True)
+    pdf.set_font("Arial", '', 11)
+    pdf.cell(0, 8, f"- Inercia Ix (Viento): {ix:.2f} cm4", ln=True)
+    pdf.cell(0, 8, f"- Inercia Iy (Peso): {iy:.2f} cm4", ln=True)
+    pdf.cell(0, 8, f"- Módulo Sx: {sx:.2f} cm3", ln=True)
+    pdf.cell(0, 8, f"- Módulo Sy: {sy:.2f} cm3", ln=True)
+    pdf.ln(5)
+
+    # Sección 3: Especificación de Calzos (Métrico)
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, "3. Especificación de Setting Blocks", ln=True)
+    pdf.set_font("Arial", '', 11)
+    pdf.cell(0, 8, f"- Material: {mat_block}", ln=True)
+    pdf.cell(0, 8, f"- Largo calculado: {sb_len:.2f} mm", ln=True)
+    pdf.cell(0, 8, f"- Ubicación desde extremos: {sb_pos:.1f} mm", ln=True)
+    
+    return pdf.output(dest='S')
+
+# --- BOTÓN DE DESCARGA EN LA INTERFAZ ---
+st.sidebar.markdown("---")
+if st.sidebar.button("📄 Generar Reporte PDF"):
+    pdf_output = generar_pdf(None)
+    b64 = base64.b64encode(pdf_output).decode()
+    href = f'<a href="data:application/octet-stream;base64,{b64}" download="Memoria_Travesano_{L}mm.pdf">Haga clic aquí para descargar el PDF</a>'
+    st.sidebar.markdown(href, unsafe_allow_html=True)
+    st.sidebar.success("¡PDF generado con éxito!")
