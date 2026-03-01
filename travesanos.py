@@ -5,55 +5,31 @@ import matplotlib.pyplot as plt
 import os
 
 # =================================================================
-# 1. MOTOR DE CÁLCULO ACTUALIZADO (MÉTRICO)
+# 1. CONFIGURACIÓN, ESTILO Y TÍTULO
 # =================================================================
-def calcular_todo_metrico():
-    # Propiedades del Material (Aluminio/Acero)
-    E = 21000000000 if "Acero" in material else 7101002754
-    Fcy = 27532337.75 if "Acero" in material else (17576739.5 if "T6" in material else 11249113.3)
+st.set_page_config(page_title="AccuraWall | Prediseño de Travesaños", layout="wide")
 
-    L_m, U_m, e_m = L / 1000, U / 1000, e_vidrio / 1000
-    
-    # --- Criterios de Deformación ---
-    df_h_adm = (L / 175) if L < 4115 else ((L / 240) + 6.35)
-    df_v_adm = min(L / 360, 3.18)
+st.markdown("""
+    <style>
+    .main > div { padding-left: 2.5rem; padding-right: 2.5rem; }
+    .stMetric { background-color: #f8f9fa; padding: 15px; border-radius: 10px; border: 1px solid #dee2e6; }
+    .result-box { 
+        background-color: #f0f7ff; padding: 25px; 
+        border-left: 10px solid #003366; border-radius: 8px; margin: 20px 0;
+    }
+    .guide-box {
+        background-color: #fffaf0; padding: 15px;
+        border: 1px solid #ff9900; border-radius: 8px; margin-bottom: 20px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-    # --- Inercias y Módulos ---
-    # Eje X-X (Viento)
-    ratio_h = U_m / (2 * L_m)
-    factor_h = (1 - (4/3) * (ratio_h**2)) if ratio_h < 1 else 1.0
-    ix_val = ((5 / 384) * q_viento * U_m * L_m**4 / (E * (df_h_adm/1000))) * factor_h
-    
-    # Eje Y-Y (Peso Vidrio)
-    peso_lineal = 2500 * e_m * U_m 
-    iy_val = (5 / 384) * peso_lineal * L_m**4 / (E * (df_v_adm/1000))
-
-    Fb = 0.6 * Fcy
-    sx_val = ((1/8 * q_viento * U_m * L_m**2) / Fb) * 100**3
-    sy_val = ((1/8 * peso_lineal * L_m**2) / Fb) * 100**3
-
-    # --- CÁLCULO DE CALZOS (UNIDADES MÉTRICAS) ---
-    area_m2 = L_m * U_m
-    
-    # Aplicación de fórmulas: Neopreno (27 mm/m2) / PVC (14 mm/m2)
-    if mat_block == "Neopreno/EPDM/Silicona":
-        longitud_calc = 27 * area_m2
-        minimo_norma = 100.0 if L > 1219.2 else 50.0 # Mínimos de seguridad en mm
-    elif mat_block == "PVC":
-        longitud_calc = 14 * area_m2
-        minimo_norma = 100.0 if L > 1219.2 else 50.0
-    else: # Plomo u otros (Referencia anterior)
-        longitud_calc = 25.4 * (0.05 * (area_m2 * 10.764))
-        minimo_norma = 100.0
-    
-    final_sb_mm = max(longitud_calc, minimo_norma)
-    dist_sb_mm = L * (0.25 if "L/4" in pos_block else 0.125)
-
-    return (ix_val * 100**4, iy_val * 100**4, sx_val, sy_val, 
-            final_sb_mm, dist_sb_mm, area_m2, df_h_adm, df_v_adm)
+st.title("🏛️ Prediseño de Travesaños (Horizontales)")
+st.markdown("#### **Control de Deflexión Combinada y Especificación de Apoyos de Vidrio**")
+st.divider()
 
 # =================================================================
-# 2. INTERFAZ DE USUARIO (SIDEBAR Y BOTONES)
+# 2. SIDEBAR: PARÁMETROS TÉCNICOS
 # =================================================================
 st.sidebar.header("⚙️ Parámetros de Diseño")
 
@@ -63,69 +39,88 @@ with st.sidebar.expander("📐 Geometría y Cargas", expanded=True):
     q_viento = st.number_input("Carga Viento (q) [kgf/m²]", value=100.0)
     e_vidrio = st.number_input("Espesor Vidrio (e) [mm]", value=12.0)
 
-with st.sidebar.expander("🛠️ Configuración de Calzos", expanded=True):
+with st.sidebar.expander("🧪 Material y Calzos", expanded=True):
+    # Definimos 'material' aquí para que el motor de cálculo lo reconozca
+    material_perfil = st.selectbox("Material del Perfil", 
+                                  ["Aluminio 6063 - T6", "Aluminio 6063 - T5", "Acero A42-27ES"])
+    
+    st.markdown("---")
     mat_block = st.selectbox("Material del Calzo", ["Neopreno/EPDM/Silicona", "PVC"])
     pos_block = st.radio("Posición de Apoyo", ["L/4 (Preferida)", "L/8 (Alternativa)"])
     
-    # Botón dinámico para la guía
-    if st.button("Ver Guía de Calzos"):
+    if st.button("Ver Guía de Calzos (setting.jpg)"):
         if os.path.exists("setting.jpg"):
             st.image("setting.jpg", caption="Ubicación de tacos de asentamiento")
+        else:
+            st.warning("Archivo 'setting.jpg' no encontrado.")
+
+# =================================================================
+# 3. MOTOR DE CÁLCULO (ORDENADO)
+# =================================================================
+def calcular_todo_metrico():
+    # Propiedades del Material
+    if "Acero" in material_perfil:
+        E, Fcy = 21000000000, 27532337.75
+    elif "T6" in material_perfil:
+        E, Fcy = 7101002754, 17576739.5
+    else: # T5
+        E, Fcy = 7101002754, 11249113.3
+
+    L_m, U_m, e_m = L / 1000, U / 1000, e_vidrio / 1000
+    
+    # 1. Límites de Deflexión
+    d_h_lim = (L / 175) if L < 4115 else ((L / 240) + 6.35)
+    d_v_lim = min(L / 360, 3.18)
+
+    # 2. Inercias y Módulos
+    # Viento (Ix) - Carga Trapezoidal
+    ratio_h = U_m / (2 * L_m)
+    factor_h = (1 - (4/3) * (ratio_h**2)) if ratio_h < 1 else 1.0
+    ix_val = ((5 / 384) * q_viento * U_m * L_m**4 / (E * (d_h_lim/1000))) * factor_h
+    
+    # Peso (Iy) - Carga Uniforme
+    peso_lin = 2500 * e_m * U_m 
+    iy_val = (5 / 384) * peso_lin * L_m**4 / (E * (d_v_lim/1000))
+
+    Fb = 0.6 * Fcy
+    sx_val = ((1/8 * q_viento * U_m * L_m**2) / Fb) * 100**3
+    sy_val = ((1/8 * peso_lin * L_m**2) / Fb) * 100**3
+
+    # 3. Calzos (Métrico y Dureza)
+    area_m2 = L_m * U_m
+    if mat_block == "Neopreno/EPDM/Silicona":
+        sb_len = 27 * area_m2
+    else: # PVC
+        sb_len = 14 * area_m2
+    
+    # Mínimos de seguridad
+    sb_len = max(sb_len, 100.0 if L > 1219.2 else 50.0)
+    sb_pos = L * (0.25 if "L/4" in pos_block else 0.125)
+
+    return (ix_val * 100**4, iy_val * 100**4, sx_val, sy_val, 
+            sb_len, sb_pos, area_m2, d_h_lim, d_v_lim)
 
 # Ejecución de cálculos
 ix, iy, sx, sy, sb_len, sb_pos, area, d_h, d_v = calcular_todo_metrico()
 
 # =================================================================
-# 3. DESPLIEGUE DE RESULTADOS
-# =================================================================
-st.subheader("📊 Requerimientos de Sección y Calzos")
-
-# Filas de Inercia y Módulo
-c1, c2 = st.columns(2)
-with c1: st.metric("Inercia Ix (Viento)", f"{ix:.2f} cm⁴")
-with c2: st.metric("Inercia Iy (Peso)", f"{iy:.2f} cm⁴")
-
-c3, c4 = st.columns(2)
-with c3: st.metric("Módulo Sx", f"{sx:.2f} cm³")
-with c4: st.metric("Módulo Sy", f"{sy:.2f} cm³")
-
-st.divider()
-
-# Resultados de Calzos con la nueva fórmula métrica
-st.markdown(f"""
-<div style="background-color: #fffaf0; padding: 20px; border: 1px solid #ff9900; border-radius: 8px;">
-    <h4 style="color: #ff9900; margin-top:0;">Especificación de Calzos (Métrico):</h4>
-    <ul>
-        <li><strong>Área del Vidrio:</strong> {area:.2f} m²</li>
-        <li><strong>Fórmula aplicada:</strong> {"27 mm/m²" if mat_block == "Neopreno/EPDM/Silicona" else "14 mm/m²"}</li>
-        <li><strong>Largo calculado por bloque:</strong> {sb_len:.2f} mm</li>
-        <li><strong>Distancia desde extremos:</strong> {sb_pos:.1f} mm</li>
-    </ul>
-</div>
-""", unsafe_allow_html=True)
-
-# Imagen del travesaño siempre visible
-if os.path.exists("trav.jpg"):
-    st.image("trav.jpg", caption="Detalle de Travesaño", width=500)
-
-# =================================================================
 # 4. DESPLIEGUE DE RESULTADOS
 # =================================================================
-st.subheader("📊 Resumen de Requerimientos Mínimos de Sección")
+st.subheader("📊 Requerimientos Mínimos de Sección")
 
 # Fila 1: Inercias
 c1, c2 = st.columns(2)
-with c1: st.metric("Inercia Ix (Viento)", f"{ix:.2f} cm⁴", help=f"Límite: {d_h:.2f} mm")
-with c2: st.metric("Inercia Iy (Peso Vidrio)", f"{iy:.2f} cm⁴", help=f"Límite: {d_v:.2f} mm")
+with c1: st.metric("Inercia Ix (Viento)", f"{ix:.2f} cm⁴", help=f"Límite Δh: {d_h:.2f} mm")
+with c2: st.metric("Inercia Iy (Peso Vidrio)", f"{iy:.2f} cm⁴", help=f"Límite Δv: {d_v:.2f} mm")
 
 # Fila 2: Módulos
 c3, c4 = st.columns(2)
-with c3: st.metric("Módulo Sx (Resistencia Viento)", f"{sx:.2f} cm³")
-with c4: st.metric("Módulo Sy (Resistencia Peso)", f"{sy:.2f} cm³")
+with c3: st.metric("Módulo Sx (Resistencia)", f"{sx:.2f} cm³")
+with c4: st.metric("Módulo Sy (Resistencia)", f"{sy:.2f} cm³")
 
 st.divider()
 
-# Sección de Calzos
+# Sección de Calzos (Setting Blocks)
 st.subheader("🛠️ Especificación de Setting Blocks (Calzos)")
 col_sb1, col_sb2 = st.columns(2)
 
@@ -134,88 +129,56 @@ with col_sb1:
     <div class="guide-box">
         <h4 style="margin-top:0; color: #ff9900;">Resultados del Cálculo:</h4>
         <ul>
-            <li><strong>Área del Vidrio:</strong> {area_ft2:.2f} ft²</li>
-            <li><strong>Longitud mínima del calzo:</strong> {sb_len:.2f} mm</li>
-            <li><strong>Ubicación ({pos_block.split()[0]}):</strong> {sb_pos:.2f} mm desde extremos</li>
+            <li><strong>Área del Vidrio:</strong> {area:.2f} m²</li>
+            <li><strong>Material:</strong> {mat_block} (85 ± 5 Sh A°)</li>
+            <li><strong>Largo mín. calzo:</strong> {sb_len:.2f} mm</li>
+            <li><strong>Ubicar a:</strong> {sb_pos:.1f} mm desde extremos</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
 
 with col_sb2:
     if os.path.exists("trav.jpg"):
-        st.image("trav.jpg", caption="Diagrama de Travesaño", use_column_width=True)
+        st.image("trav.jpg", caption="Diagrama de Cargas del Travesaño", use_column_width=True)
     else:
-        st.info("Imagen 'trav.jpg' no disponible.")
-
+        st.info("Sube 'trav.jpg' para ver el diagrama.")
 
 # =================================================================
-# 5. GRÁFICOS DE SENSIBILIDAD (Ix e Iy vs LONGITUD)
+# 5. GRÁFICOS DE SENSIBILIDAD
 # =================================================================
-st.subheader("📈 Análisis de Sensibilidad de Inercia Requerida")
-st.markdown("Visualización de cómo aumentan Ix e Iy al incrementar la longitud del travesaño (L), manteniendo fijos U y q.")
-
-# Rango de longitudes para el eje X (2000mm a 6000mm)
+st.subheader("📈 Análisis de Sensibilidad")
 L_axis = np.linspace(2000, 6000, 50)
-Ix_axis = []
-Iy_axis = []
+Ix_plt, Iy_plt = [], []
 
-# Módulo de elasticidad según material seleccionado
-Ex = 21000000000 if material == "Acero A42-27ES" else 7101002754
+# E para gráfico
+E_plt = 21000000000 if "Acero" in material_perfil else 7101002754
 
-# Parámetros fijos para el gráfico
-U_m_plot = U / 1000
-e_m_plot = e_vidrio / 1000
-
-# Bucle para calcular inercias en cada punto de longitud
 for lx in L_axis:
     lx_m = lx / 1000
+    df_h = (lx / 175) if lx < 4115 else ((lx / 240) + 6.35)
+    df_v = min(lx / 360, 3.18)
     
-    # --- Cálculo Ix (Viento) ---
-    # Criterio de deflexión horizontal variable según longitud
-    dfx_h = (lx / 175) if lx < 4115 else ((lx / 240) + 6.35)
-    
-    # Factor trapezoidal variable
-    r_h = U_m_plot / (2 * lx_m)
+    # Sensibilidad Ix
+    r_h = (U/1000) / (2 * lx_m)
     f_h = (1 - (4/3)*r_h**2) if r_h < 1 else 1.0
+    Ix_plt.append(((5/384)*q_viento*(U/1000)*lx_m**4 / (E_plt*(df_h/1000))) * f_h * 100**4)
     
-    # Ix requerida en cm4
-    ix_plot = ((5 / 384) * q_viento * U_m_plot * lx_m**4 / (Ex * (dfx_h/1000))) * f_h
-    Ix_axis.append(ix_plot * 100**4)
-    
-    # --- Cálculo Iy (Peso) ---
-    # Criterio de deflexión vertical estándar variable min(L/360, 3.18)
-    dfx_v = min(lx / 360, 3.18)
-    
-    # Iy requerida en cm4 (uniform load assumed for DL)
-    peso_v = 2500 * e_m_plot * U_m_plot
-    iy_plot = (5 / 384) * peso_v * lx_m**4 / (Ex * (dfx_v/1000))
-    Iy_axis.append(iy_plot * 100**4)
+    # Sensibilidad Iy
+    p_v = 2500 * (e_vidrio/1000) * (U/1000)
+    Iy_plt.append(((5/384)*p_v*lx_m**4 / (E_plt*(df_v/1000))) * 100**4)
 
-# Creación de los gráficos
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
-
-# Gráfico 1: Inercia Ix (Viento, Horizontal)
-ax1.plot(L_axis, Ix_axis, color='#003366', linewidth=2, label=f'Ix Req. (Viento, U={U}mm)')
-ax1.axvline(4115, color='red', ls='--', alpha=0.5, label='Umbral Cambio Criterio (4115mm)')
-ax1.scatter([L], [ix], color='red', zorder=5, label='Punto de Diseño Actual')
-ax1.set_xlabel("Longitud Travesaño L (mm)")
-ax1.set_ylabel("Inercia Ix Req. (cm4)")
-ax1.set_title("Ix Requerida ante Carga de Viento")
-ax1.legend()
+ax1.plot(L_axis, Ix_plt, color='#003366', label='Ix Req.')
+ax1.scatter([L], [ix], color='red')
+ax1.set_title("Ix vs Longitud (Viento)")
 ax1.grid(True, alpha=0.3)
 
-# Gráfico 2: Inercia Iy (Peso, Vertical)
-ax2.plot(L_axis, Iy_axis, color='#ff9900', linewidth=2, label=f'Iy Req. (Peso Vidrio, e={e_vidrio}mm)')
-ax2.scatter([L], [iy], color='red', zorder=5, label='Punto de Diseño Actual')
-ax2.set_xlabel("Longitud Travesaño L (mm)")
-ax2.set_ylabel("Inercia Iy Req. (cm4)")
-ax2.set_title("Iy Requerida ante Peso Propio del Vidrio")
-ax2.legend()
+ax2.plot(L_axis, Iy_plt, color='#ff9900', label='Iy Req.')
+ax2.scatter([L], [iy], color='red')
+ax2.set_title("Iy vs Longitud (Peso)")
 ax2.grid(True, alpha=0.3)
 
-# Desplegar los gráficos
 st.pyplot(fig)
 
-# Pie de página
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: #666;'>AccuraWall Port | Mauricio Riquelme | Prediseño de Travesaños</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: #666;'>AccuraWall Port | Mauricio Riquelme</div>", unsafe_allow_html=True)
